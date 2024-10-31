@@ -1,4 +1,10 @@
 DB
-data/DB
+data
 
 env
+__pycache__
+
+secrets.json
+setting.json
+
+logs
