@@ -2,9 +2,9 @@
 
 class ApiSecrets:
     def __init__(self, ob):
-        self.public_api = ob['public_api']
-        self.secret_api= ob['secret_api']
-        self.password= ob['password']
+        self.apiKey = ob['apiKey']
+        self.secretKey= ob['secretKey']
+        self.passphrase= ob['passphrase']
 
     def __repr__(self):
         return str(vars(self))

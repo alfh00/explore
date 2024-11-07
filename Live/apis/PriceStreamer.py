@@ -8,7 +8,7 @@ import threading
 
 
 class PriceStreamer(threading.Thread):
-    def __init__(self, shared_prices, price_lock: threading.Lock, price_events, candle_events):
+    def __init__(self, shared_prices, price_lock: threading.Lock, price_events):
         super().__init__()
         self.shared_prices = shared_prices  # Shared dictionary for price updates
         self.price_lock = price_lock        # Lock for thread-safe access to shared_prices

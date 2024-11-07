@@ -15,12 +15,13 @@ GRANULARITIES = {
 
 
 class PriceProcessor(ThreadBase):
-    def __init__(self, shared_prices, price_lock: threading.Lock, price_events, shared_candles, candle_lock, candle_events, logname, pair, granularity):
-        super().__init__(shared_prices, price_lock, price_events,shared_candles, candle_lock, candle_events, logname)
+    def __init__(self, shared_prices, price_lock: threading.Lock, price_events, price_queue, candle_queue, logname, pair, granularity):
+        super().__init__(shared_prices, price_lock, price_events, logname)
         self.pair = pair
         self.granularity = GRANULARITIES[granularity]
-        self.candle_events = candle_events
         self.current_candle_data_df = pd.DataFrame(columns=['time', 'price'])
+        self.candle_queue= candle_queue
+        self.price_queue= price_queue
     
         now = dt.datetime.now(pytz.timezone('UTC'))
         self.set_last_candle(now)
@@ -51,10 +52,10 @@ class PriceProcessor(ThreadBase):
             print(f'New Candle : {self.pair} Last Complete Candle {self.last_complete_candle_time} Current candle time {price.time}')
 
     def update_candle(self, symbol, candle):
-        with self.candle_lock:
-            self.shared_candles[symbol] = candle
-        # Notify TraderBot that a candle update has occurred
-        self.candle_events[symbol].set()
+        self.candle_queue.put(dict(symbol=symbol, candle=candle))
+
+    def update_price(self, symbol, price):
+        self.price_queue.put(dict(symbol=symbol, price=price))
 
     def construct_candle(self):
         if not self.current_candle_data_df.empty:
@@ -66,7 +67,7 @@ class PriceProcessor(ThreadBase):
             
             # Create a dictionary with OHLC values and the timestamp of the candle
             candle_data = {
-                'time': self.last_complete_candle_time,
+                'datetime': self.last_complete_candle_time,
                 'open': open_price,
                 'high': high_price,
                 'low': low_price,
@@ -78,7 +79,7 @@ class PriceProcessor(ThreadBase):
             print(f"Constructed Candle: {candle_data}")
             
             # Reset the DataFrame for the next candle
-            self.current_candle_data_df = pd.DataFrame(columns=['time', 'price'])
+            self.current_candle_data_df = pd.DataFrame(columns=['datetime', 'price'])
             
             return candle_data
         else:
@@ -89,8 +90,9 @@ class PriceProcessor(ThreadBase):
         try:
             self.price_lock.acquire()
             price = copy.deepcopy(self.shared_prices[self.pair])
-            print(f'PriceProcessor : {price}')
             if price is not None:
+                self.update_price(self.pair, price)
+
                 new_data = pd.DataFrame([{'time': price.time, 'price': price.price}])
                 
                 # Concatenate only if current_candle_data_df has data

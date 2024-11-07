@@ -1,5 +1,5 @@
 from apis.PriceStreamer import PriceStreamer
-from apis.ApiClient import BitgetClient
+from apis.bitget_client import BitgetClient
 from logger import Logger
 from models.trade_settings import TradeSettings
 from models.api_secrets import ApiSecrets
@@ -15,7 +15,7 @@ class TraderBot():
     MAIN_LOG = 'main'
     GRANULARITY = '1m'
     ACCOUNT= 'bitget1'
-    SLEEP = 10
+    
 
     def __init__(self):
        # Load settings and secrets
@@ -28,26 +28,22 @@ class TraderBot():
         self.price_lock = threading.Lock() 
         self.price_events = {symbol: threading.Event() for symbol in self.trade_settings.keys()}
         
-        self.shared_candles = {symbol: None for symbol in self.trade_settings.keys()}
-        self.candle_lock = threading.Lock()  
-        self.candle_events = {symbol: threading.Event() for symbol in self.trade_settings.keys()}
-
-        # work_queue = Queue()
+        price_queue = Queue()
+        candle_queue = Queue()
 
         threads = []
 
 
         # Initialize API client, PriceStreamer and DataManager
-        self.api = BitgetClient(self.api_secrets.public_api, self.api_secrets.secret_api, self.api_secrets.password)
-        
-        self.price_streamer = PriceStreamer(self.shared_prices, self.price_lock, self.price_events, self.candle_events)
+        self.api = BitgetClient(self.api_secrets.apiKey, self.api_secrets.secretKey, self.api_secrets.passphrase)
+        self.price_streamer = PriceStreamer(self.shared_prices, self.price_lock, self.price_events)
+
         for pair, pair_setting in self.trade_settings.items():
             price_processor_t = PriceProcessor(self.shared_prices, 
                                                self.price_lock, 
                                                self.price_events, 
-                                               self.shared_candles,
-                                               self.candle_lock, 
-                                               self.candle_events,
+                                               price_queue,
+                                               candle_queue,                          
                                                f'PriceProcess_{pair}', 
                                                pair, 
                                                pair_setting.granularity
@@ -55,23 +51,21 @@ class TraderBot():
             price_processor_t.daemon = True
             threads.append(price_processor_t)
             price_processor_t.start()
-
+        
         for pair, pair_setting in self.trade_settings.items():
             strategy_processor_t = Strategy(self.shared_prices, 
-                                               self.price_lock, 
-                                               self.price_events, 
-                                               self.shared_candles,
-                                               self.candle_lock, 
-                                               self.candle_events,
-                                               self.api,
-                                               f'StrategyProcess_{pair}', 
-                                               pair, 
-                                               pair_setting
-                                               )
+                                            self.price_lock, 
+                                            self.price_events, 
+                                            price_queue,
+                                            candle_queue,
+                                            self.api,                          
+                                            f'StrategyProcess_{pair}', 
+                                            pair, 
+                                            pair_setting
+                                            )
             strategy_processor_t.daemon = True
             threads.append(strategy_processor_t)
             strategy_processor_t.start()
-
 
     def setup_logs(self):
         self.logs = {}
@@ -93,13 +87,13 @@ class TraderBot():
         self.log_message(msg, TraderBot.ERROR_LOG)
 
     def load_settings(self):
-        with open('./Live2/setting.json', 'r') as f:
+        with open('./Live/setting.json', 'r') as f:
             data = json.loads(f.read())
             self.trade_settings = {symbol: TradeSettings(settings) for symbol, settings in data.items()}
             print(self.trade_settings)
     
     def load_secrets(self):
-        with open('./Live2/secrets.json', 'r') as f:
+        with open('./Live/secrets.json', 'r') as f:
             data = json.loads(f.read())
             data = data[self.ACCOUNT]
             self.api_secrets = ApiSecrets(data) 

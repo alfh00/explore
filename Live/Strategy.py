@@ -2,41 +2,137 @@ import threading
 import copy
 import pandas as pd
 from thread_base import ThreadBase
-from apis.ApiClient import BitgetClient
+from apis.bitget_client import BitgetClient
 
 
 class Strategy(ThreadBase):
 
-    def __init__(self, shared_prices, price_lock: threading.Lock, price_events, shared_candles, candle_lock, candle_events, api, logname, pair, settings):
-        super().__init__(shared_prices, price_lock, price_events,shared_candles, candle_lock, candle_events, logname, api=api)
+    def __init__(self, shared_prices, price_lock: threading.Lock, price_events, price_queue, candle_queue, api, logname, pair, settings):
+        super().__init__(shared_prices, price_lock, price_events, logname, api=api)
         self.pair = pair
         self.settings = settings
         self.api: BitgetClient = api
         self.df = None
+        self.candle_queue= candle_queue
+        self.price_queue= price_queue
 
     def update_df(self, candle):
         if self.df is None:
-            self.df = self.api.get_last_historical(self.pair, self.settings.granularity, limit=100)
+            params = {
+            "symbol": self.pair,  
+            "productType": "USDT-FUTURES",  
+            "granularity": self.settings.granularity,  
+            "limit": "100"
+            }
+            ohlc_data = self.api.candles(params)['data']
+            df = pd.DataFrame(ohlc_data, columns=['datetime', 'open', 'high', 'low', 'close', 'volume', 'QuoteAssetVolume']).astype(float)
+
+            # Convert the Timestamp column to datetime
+            df['datetime'] = pd.to_numeric(df['datetime'])
+            df['datetime'] = pd.to_datetime(df['datetime'], unit='ms')
+
+            # Set the Timestamp column as the index
+            df.set_index('datetime', inplace=True)
+            self.df = df
             
         else:
-            new_row = pd.DataFrame([candle]).set_index('time')
-            self.df = pd.concat([self.df, new_row], ignore_index=False)
-        self.log_message(f'DF updated :\n {self.df.tail(2)}')
+            new_row = pd.DataFrame([candle]).set_index('datetime')
+            temp_df = pd.concat([self.df, new_row], ignore_index=False)
+            self.df = temp_df[-100:]
     
-    def process_candle(self): 
-        try:
-            self.candle_lock.acquire()
-            candle = copy.deepcopy(self.shared_candles[self.pair])
-            self.update_df(candle)
-            self.log_message(f'Candle received : {candle}')
-        except Exception as e:
-            self.log_message(f'CRASH : {e}', error=True)
-        finally:
-            self.candle_lock.release()
+    # def get_orders(self):
+    #     return self.api.get_open_position(symbol=self.pair)
+    
+    def run_analysis(self):
+        pass
 
+    # def process_bid_ask(self, price):
+    #     try:
+    #         self.price_lock.acquire()
+    #         # price = copy.deepcopy(self.shared_prices[self.pair])
+    #         print(f'Strategy bid: {price.bid}, ask: {price.ask}')
+            
+    #         # Further processing based on bid and ask prices
+    #     except Exception as e:
+    #         self.log_message(f'CRASH : {e}', error=True)
+    #     finally:
+    #         self.price_lock.release()
+    def _find_high_low(self, candle, df, window=5):
+    
+        PIVOT_H = 1
+        PIVOT_L = -1
+        
+        if ((candle-window) <0) | ((candle+window)>=len(df)):
+            return 0
+        
+        pivot_high = True
+        pivot_low = True
+        
+        for i in range(candle - window, candle + window + 1):
+            if df.iloc[candle].high < df.iloc[i].high:
+                pivot_high = False
+            if df.iloc[candle].low > df.iloc[i].low:
+                pivot_low = False
+        
+        if pivot_high and pivot_low:
+            return 0
+        elif pivot_high:
+            return PIVOT_H
+        elif pivot_low:
+            return PIVOT_L
+        else:
+            return 0 
+        
+    def populate_indicators(self):
+        
+        df = self.df
+        df = df.reset_index()
+        df['hh_ll'] = df.apply(lambda row: self._find_high_low(row.name, df), axis=1)
+        df.set_index('datetime', inplace=True)
+
+        self.df = df 
+
+    def find_last_h_l(self):
+        df = self.df
+
+        last_h_l = {"hh": None, "ll": None}
+
+        for index, row in df.iterrows():
+            # Update the last higher-high (HH) and lower-low (LL) if there's a pivot high or low
+            if row['hh_ll'] == 1:  # New pivot high
+                last_h_l['hh'] = row['high']
+            elif row['hh_ll'] == -1:  # New pivot low
+                last_h_l['ll'] = row['low']
+
+            # Store the last HH and LL in the data frame
+            df.loc[index, 'hh'] = last_h_l['hh']
+            df.loc[index, 'll'] = last_h_l['ll']
+
+        self.df = df   
+
+    def peek(self):
+        try:
+            return self.candle_queue[0]
+        except IndexError:
+            return None
+        
     def run(self):
         while True:
-            self.candle_events[self.pair].wait()
-            self.process_candle()
-            self.candle_events[self.pair].clear()
+            # --- On new price
+            new_price = self.price_queue.get()
+            # if long triggred check for trail stop
+            # if short triggred check for trail stop 
+            
+            # --- On new Candle
+            if not self.candle_queue.empty():
+                new_candle = self.candle_queue.get()
+                if new_candle['symbol'] == self.pair:
+                    self.update_df(new_candle['candle'])
+                    self.populate_indicators()
+                    self.find_last_h_l()
+                    # if no order place order
+                    # if long only place short
+                    # if short place long
+                    self.log_message(f'DF updated :\n {self.df.tail(2)}')
+                    
         
