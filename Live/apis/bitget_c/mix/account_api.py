@@ -1,6 +1,6 @@
 #!/usr/bin/python
-from bitget.client import Client
-from bitget.consts import GET, POST
+from bitget_c.client import Client
+from bitget_c.consts import GET, POST
 
 
 class AccountApi(Client):

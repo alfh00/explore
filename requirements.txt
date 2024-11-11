@@ -79,6 +79,7 @@ pure_eval==0.2.3
 pybind11==2.13.1
 pycares==4.4.0
 pycparser==2.22
+pycryptodome==3.21.0
 pyerfa==2.0.1.4
 Pygments==2.18.0
 pyparsing==3.1.2

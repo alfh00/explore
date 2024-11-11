@@ -1,3 +1,4 @@
+from PositionProcessor import PositionProcessor
 from apis.PriceStreamer import PriceStreamer
 from apis.bitget_client import BitgetClient
 from logger import Logger
@@ -9,6 +10,8 @@ import json
 import time
 import threading
 from queue import Queue
+
+from OrderManager import OrderManager
 
 class TraderBot():
     ERROR_LOG = 'error'
@@ -27,16 +30,29 @@ class TraderBot():
         self.shared_prices = {symbol: None for symbol in self.trade_settings.keys()}
         self.price_lock = threading.Lock() 
         self.price_events = {symbol: threading.Event() for symbol in self.trade_settings.keys()}
+        self.shared_positions = {symbol: None for symbol in self.trade_settings.keys()}
+        self.position_lock = threading.Lock() 
+        self.position_events = {symbol: threading.Event() for symbol in self.trade_settings.keys()}
         
         price_queue = Queue()
         candle_queue = Queue()
+        position_queue = Queue()
+        
 
         threads = []
 
 
         # Initialize API client, PriceStreamer and DataManager
         self.api = BitgetClient(self.api_secrets.apiKey, self.api_secrets.secretKey, self.api_secrets.passphrase)
-        self.price_streamer = PriceStreamer(self.shared_prices, self.price_lock, self.price_events)
+        self.price_streamer = PriceStreamer(self.shared_prices,
+                                            self.price_lock, 
+                                            self.price_events, 
+                                            self.shared_positions, 
+                                            self.position_lock, 
+                                            self.position_events, 
+                                            self.api_secrets.apiKey, 
+                                            self.api_secrets.secretKey, 
+                                            self.api_secrets.passphrase)
 
         for pair, pair_setting in self.trade_settings.items():
             price_processor_t = PriceProcessor(self.shared_prices, 
@@ -53,12 +69,24 @@ class TraderBot():
             price_processor_t.start()
         
         for pair, pair_setting in self.trade_settings.items():
-            strategy_processor_t = Strategy(self.shared_prices, 
-                                            self.price_lock, 
-                                            self.price_events, 
-                                            price_queue,
+            position_processor_t = PositionProcessor(self.shared_positions, 
+                                                    self.position_lock, 
+                                                    self.position_events, 
+                                                    position_queue,                         
+                                                    f'PositionProcess_{pair}', 
+                                                    pair, 
+                                                    
+                                                    )
+            position_processor_t.daemon = True
+            threads.append(position_processor_t)
+            position_processor_t.start()
+        
+        for pair, pair_setting in self.trade_settings.items():
+            strategy_processor_t = Strategy(price_queue,
                                             candle_queue,
-                                            self.api,                          
+                                            position_queue,
+                                            self.api,
+                                            OrderManager,                      
                                             f'StrategyProcess_{pair}', 
                                             pair, 
                                             pair_setting

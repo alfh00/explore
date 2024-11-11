@@ -3,12 +3,12 @@ from logger import Logger
 
 class ThreadBase(threading.Thread):
 
-    def __init__(self, shared_prices, price_lock: threading.Lock, price_events, logname, api=None):
+    def __init__(self, logname, api=None, shared=None, lock: threading.Lock=None, events=None):
         super().__init__()
-        self.shared_prices = shared_prices
-        self.price_lock = price_lock
-        self.price_events = price_events
-        self.api = api or None
+        self.shared = shared
+        self.lock = lock
+        self.events = events
+        self.api = api
         self.log = Logger(logname)
 
     def log_message(self, msg, error=False):

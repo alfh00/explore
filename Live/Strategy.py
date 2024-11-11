@@ -1,20 +1,25 @@
-import threading
-import copy
 import pandas as pd
 from thread_base import ThreadBase
 from apis.bitget_client import BitgetClient
+from OrderManager import OrderManager
 
+from models.live_position import LivePosition
+from models.live_prices import LiveStreamPrice
 
 class Strategy(ThreadBase):
 
-    def __init__(self, shared_prices, price_lock: threading.Lock, price_events, price_queue, candle_queue, api, logname, pair, settings):
-        super().__init__(shared_prices, price_lock, price_events, logname, api=api)
+    def __init__(self, price_queue, candle_queue, position_queue, api, order_manager, logname, pair, settings):
+        super().__init__(logname=logname, api=api)
         self.pair = pair
         self.settings = settings
         self.api: BitgetClient = api
         self.df = None
         self.candle_queue= candle_queue
         self.price_queue= price_queue
+        self.position_queue= position_queue
+        self.order_manager: OrderManager = order_manager(self.pair, self.api)
+        self.long_position = None
+        self.short_position = None
 
     def update_df(self, candle):
         if self.df is None:
@@ -115,13 +120,31 @@ class Strategy(ThreadBase):
             return self.candle_queue[0]
         except IndexError:
             return None
+    
+    def check_position(self, position: LivePosition):
+        if position.is_long():
+            if position.is_active():
+                self.long_position = position
+            else:
+                self.long_position = None
+        else:
+            if position.is_active():
+                self.short_position = position
+            else:
+                self.short_position = None
+        
+
+    
         
     def run(self):
         while True:
             # --- On new price
             new_price = self.price_queue.get()
+            position = self.position_queue.get()
+            self.check_position(position)
+            
             # if long triggred check for trail stop
-            # if short triggred check for trail stop 
+            # if short triggred check for trail stop
             
             # --- On new Candle
             if not self.candle_queue.empty():
@@ -130,6 +153,7 @@ class Strategy(ThreadBase):
                     self.update_df(new_candle['candle'])
                     self.populate_indicators()
                     self.find_last_h_l()
+                    
                     # if no order place order
                     # if long only place short
                     # if short place long

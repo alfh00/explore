@@ -16,7 +16,7 @@ GRANULARITIES = {
 
 class PriceProcessor(ThreadBase):
     def __init__(self, shared_prices, price_lock: threading.Lock, price_events, price_queue, candle_queue, logname, pair, granularity):
-        super().__init__(shared_prices, price_lock, price_events, logname)
+        super().__init__(logname=logname, shared=shared_prices, lock=price_lock, events=price_events)
         self.pair = pair
         self.granularity = GRANULARITIES[granularity]
         self.current_candle_data_df = pd.DataFrame(columns=['time', 'price'])
@@ -88,9 +88,10 @@ class PriceProcessor(ThreadBase):
 
     def process_price(self):
         try:
-            self.price_lock.acquire()
-            price = copy.deepcopy(self.shared_prices[self.pair])
+            self.lock.acquire()
+            price = copy.deepcopy(self.shared[self.pair])
             if price is not None:
+                # todo : might update only if price changes ------------------
                 self.update_price(self.pair, price)
 
                 new_data = pd.DataFrame([{'time': price.time, 'price': price.price}])
@@ -104,16 +105,16 @@ class PriceProcessor(ThreadBase):
                 
                 # Print updated DataFrame
                 # print('Current DataFrame:\n', self.current_candle_data_df)
-
                 self.detect_new_candle(price)
+
         except Exception as e:
             self.log_message(f'CRASH : {e}', error=True)
         finally:
-            self.price_lock.release()
+            self.lock.release()
 
     def run(self):
         while True:
-            self.price_events[self.pair].wait()
+            self.events[self.pair].wait()
             self.process_price()
-            self.price_events[self.pair].clear()
+            self.events[self.pair].clear()
 

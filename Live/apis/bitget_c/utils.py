@@ -33,7 +33,7 @@ def get_header(api_key, sign, timestamp, passphrase):
     header[c.OK_ACCESS_SIGN] = sign
     header[c.OK_ACCESS_TIMESTAMP] = str(timestamp)
     header[c.OK_ACCESS_PASSPHRASE] = passphrase
-    header[c.LOCALE] = 'zh-CN'
+    header[c.LOCALE] = 'en-US'
 
     return header
 
