@@ -9,24 +9,52 @@ class OrderManager:
         """
         self.api = api
         self.symbol = symbol
+        self.contract = self.get_instrument_contract()
 
-    def place_trigger_order(self, symbol, side, order_type, size, t_price=None, oid='001'):
+    def oid(self):
+        pass
+
+    def get_instrument_contract(self):
+        contract = self.api.contracts(dict(symbol=self.symbol, productType='USDT-FUTURES'))
+        return contract['data'][0]
+
+    def place_trigger_order(self, size, side, order_type, price, oid='001'):
         
         params = {
             "planType": "normal_plan",                   # 'normal_plan' | 'track_plan'
-            "symbol": symbol,
+            "symbol": self.symbol,
             "productType": "USDT-FUTURES",
             "marginMode": "isolated",
             "marginCoin": "USDT",
             "size": size,
-            "price": "0.6100",             
-            "triggerPrice": t_price,       
+            "price": price,             
+            "triggerPrice": price,       
             "triggerType": "mark_price",    
             "side": side,                                # 'buy'   | 'sell'
             "tradeSide": 'open',                         # 'open'  | 'close'
             "orderType": order_type,                     # 'limit' | 'market'
             "clientOid": oid,
         }
+        # {
+        #     "planType": "normal_plan",
+        #     "symbol": "BTCUSDT",
+        #     "productType": "USDT-FUTURES",
+        #     "marginMode": "isolated",
+        #     "marginCoin": "USDT",
+        #     "size": "0.01",
+        #     "price": "24000",
+        #     "triggerPrice": "24100",
+        #     "triggerType": "mark_price",
+        #     "side": "buy",
+        #     "tradeSide": "open",
+        #     "orderType": "limit",
+        #     "clientOid": "unique_client_id_12345",
+        #     "reduceOnly": "NO",
+        #     "stopSurplusTriggerPrice": "25000",
+        #     "stopSurplusTriggerType": "mark_price",
+        #     "stopLossTriggerPrice": "23000",
+        #     "stopLossTriggerType": "mark_price"
+        # }
 
         try:
             # Place the order through the session (API)

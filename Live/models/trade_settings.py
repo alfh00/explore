@@ -2,12 +2,12 @@
 
 class TradeSettings:
     def __init__(self, ob):
-        self.granularity= ob['granularity']
-        self.dist = ob['dist']
-        self.sl_pct= ob['sl_pct']
-        self.tp_pct= ob['tp_pct']
-        self.trailing_sl_trigger_pct= ob['trailing_sl_trigger_pct']
-        self.trailing_sl_pct= ob['trailing_sl_pct']
+        self.granularity= str(ob['granularity'])
+        self.dist = float(ob['dist'])
+        self.sl_pct= float(ob['sl_pct'])
+        self.tp_pct= float(ob['tp_pct'])
+        self.trailing_sl_trigger_pct= float(ob['trailing_sl_trigger_pct'])
+        self.trailing_sl_pct= float(ob['trailing_sl_pct'])
 
     def __repr__(self):
         return str(vars(self))
@@ -20,3 +20,6 @@ class TradeSettings:
         ret_str += '\n'
 
         return ret_str
+    
+    def add_contract(self, contract):
+        self.contract = contract

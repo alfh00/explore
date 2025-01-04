@@ -48,8 +48,8 @@ class PriceStreamer(threading.Thread):
     def update_price(self, symbol, price):
         with self.price_lock:
             self.shared_prices[symbol] = price
-        # Notify TraderBot that a price update has occurred
-        self.price_events[symbol].set()
+            # Notify TraderBot that a price update has occurred
+            self.price_events[symbol].set()
 
     def update_positions(self, positions):
         tmp_positions = {symbol: None for symbol in self.symbols} 
@@ -57,10 +57,11 @@ class PriceStreamer(threading.Thread):
             for position in positions:
                 tmp_positions[position['instName']] = LivePosition(position)
         for symbol in tmp_positions.keys():
-            with self.position_lock:
-                self.shared_positions[symbol] = tmp_positions[symbol]
-                # Notify TraderBot that a position update has occurred
-                self.position_events[symbol].set()
+            if tmp_positions[symbol] is not None:
+                with self.position_lock:
+                    self.shared_positions[symbol] = tmp_positions[symbol]
+                    # Notify TraderBot that a position update has occurred
+                    self.position_events[symbol].set()
 
 
 

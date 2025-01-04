@@ -21,7 +21,7 @@ class TraderBot():
     
 
     def __init__(self):
-       # Load settings and secrets
+        # Load settings and secrets
         self.load_settings()
         self.load_secrets()
         self.setup_logs()
@@ -34,9 +34,9 @@ class TraderBot():
         self.position_lock = threading.Lock() 
         self.position_events = {symbol: threading.Event() for symbol in self.trade_settings.keys()}
         
-        price_queue = Queue()
-        candle_queue = Queue()
-        position_queue = Queue()
+        self.price_queue = {symbol: Queue() for symbol in self.trade_settings.keys()}
+        self.candle_queue = {symbol: Queue() for symbol in self.trade_settings.keys()}
+        self.position_queue = {symbol: Queue() for symbol in self.trade_settings.keys()}
         
 
         threads = []
@@ -44,6 +44,7 @@ class TraderBot():
 
         # Initialize API client, PriceStreamer and DataManager
         self.api = BitgetClient(self.api_secrets.apiKey, self.api_secrets.secretKey, self.api_secrets.passphrase)
+
         self.price_streamer = PriceStreamer(self.shared_prices,
                                             self.price_lock, 
                                             self.price_events, 
@@ -58,8 +59,8 @@ class TraderBot():
             price_processor_t = PriceProcessor(self.shared_prices, 
                                                self.price_lock, 
                                                self.price_events, 
-                                               price_queue,
-                                               candle_queue,                          
+                                               self.price_queue,
+                                               self.candle_queue,                          
                                                f'PriceProcess_{pair}', 
                                                pair, 
                                                pair_setting.granularity
@@ -72,7 +73,7 @@ class TraderBot():
             position_processor_t = PositionProcessor(self.shared_positions, 
                                                     self.position_lock, 
                                                     self.position_events, 
-                                                    position_queue,                         
+                                                    self.position_queue[pair],                         
                                                     f'PositionProcess_{pair}', 
                                                     pair, 
                                                     
@@ -82,14 +83,14 @@ class TraderBot():
             position_processor_t.start()
         
         for pair, pair_setting in self.trade_settings.items():
-            strategy_processor_t = Strategy(price_queue,
-                                            candle_queue,
-                                            position_queue,
+            strategy_processor_t = Strategy(self.price_queue[pair],
+                                            self.candle_queue[pair],
+                                            self.position_queue[pair],
                                             self.api,
                                             OrderManager,                      
                                             f'StrategyProcess_{pair}', 
                                             pair, 
-                                            pair_setting
+                                            self.trade_settings[pair]
                                             )
             strategy_processor_t.daemon = True
             threads.append(strategy_processor_t)
@@ -118,7 +119,8 @@ class TraderBot():
         with open('./Live/setting.json', 'r') as f:
             data = json.loads(f.read())
             self.trade_settings = {symbol: TradeSettings(settings) for symbol, settings in data.items()}
-            print(self.trade_settings)
+            # print(self.trade_settings)
+
     
     def load_secrets(self):
         with open('./Live/secrets.json', 'r') as f:

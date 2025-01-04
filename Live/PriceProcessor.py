@@ -52,10 +52,10 @@ class PriceProcessor(ThreadBase):
             print(f'New Candle : {self.pair} Last Complete Candle {self.last_complete_candle_time} Current candle time {price.time}')
 
     def update_candle(self, symbol, candle):
-        self.candle_queue.put(dict(symbol=symbol, candle=candle))
+        self.candle_queue[symbol].put(candle)
 
     def update_price(self, symbol, price):
-        self.price_queue.put(dict(symbol=symbol, price=price))
+        self.price_queue[symbol].put(price)
 
     def construct_candle(self):
         if not self.current_candle_data_df.empty:

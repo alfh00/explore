@@ -5,13 +5,14 @@ from OrderManager import OrderManager
 
 from models.live_position import LivePosition
 from models.live_prices import LiveStreamPrice
+from models.trade_settings import TradeSettings
 
 class Strategy(ThreadBase):
 
     def __init__(self, price_queue, candle_queue, position_queue, api, order_manager, logname, pair, settings):
         super().__init__(logname=logname, api=api)
         self.pair = pair
-        self.settings = settings
+        self.settings : TradeSettings = settings
         self.api: BitgetClient = api
         self.df = None
         self.candle_queue= candle_queue
@@ -44,6 +45,8 @@ class Strategy(ThreadBase):
             new_row = pd.DataFrame([candle]).set_index('datetime')
             temp_df = pd.concat([self.df, new_row], ignore_index=False)
             self.df = temp_df[-100:]
+
+        
     
     # def get_orders(self):
     #     return self.api.get_open_position(symbol=self.pair)
@@ -122,41 +125,70 @@ class Strategy(ThreadBase):
             return None
     
     def check_position(self, position: LivePosition):
-        if position.is_long():
-            if position.is_active():
-                self.long_position = position
+        if position is not None:
+            if position.is_long():
+                if position.is_active():
+                    self.long_position = position
+                else:
+                    self.long_position = None
             else:
-                self.long_position = None
-        else:
-            if position.is_active():
-                self.short_position = position
-            else:
-                self.short_position = None
+                if position.is_active():
+                    self.short_position = position
+                else:
+                    self.short_position = None
         
+    def place_trigger_orders(self):
+        if self.long_position is None:
+            hh = self.df['hh'].iloc[-1]
+            # print(hh)
+            long_order_price = hh - (hh * self.settings.dist)
+            sl = long_order_price - (long_order_price * self.settings.sl_pct)
+            tp = long_order_price + (long_order_price * self.settings.tp_pct)
+            print(f'long order price: {long_order_price}, sl: {sl}, tp: {tp}')
+            # self.order_manager.place_trigger_order()
+
+        if self.short_position is None:
+            ll = self.df['ll'].iloc[-1]
+            # print(ll)
+            short_order_price = ll + (ll * self.settings.dist)
+            sl = short_order_price + (short_order_price * self.settings.sl_pct)
+            tp = short_order_price - (short_order_price * self.settings.tp_pct)
+            print(f'short order price: {short_order_price}, sl: {sl}, tp: {tp}')
+            # self.order_manager.place_trigger_order()
+
+    def pick_upcoming_price(self):
+        if not self.price_queue.empty():
+            new_price = self.price_queue.get()
+            print(new_price)
+            # trail stop
+
+    def pick_upcoming_position(self):
+        if not self.position_queue.empty():
+            position = self.position_queue.get()
+            print(position)
+            # check opening closing position 
+            return self.check_position(position)
+    
+    def pick_upcoming_candle(self):
+        if not self.candle_queue.empty():
+            candle = self.candle_queue.get()
+            # print(candle) # print for debug
+            self.update_df(candle)
+            self.populate_indicators()
+            self.find_last_h_l()
+            self.log_message(f'DF updated :\n {self.df.tail(2)}')
+            self.place_trigger_orders()
 
     
-        
     def run(self):
         while True:
             # --- On new price
-            new_price = self.price_queue.get()
-            position = self.position_queue.get()
-            self.check_position(position)
+            self.pick_upcoming_price()
+            # --- On new position
+            self.pick_upcoming_position()
+            # --- On new candle
+            self.pick_upcoming_candle()
             
-            # if long triggred check for trail stop
-            # if short triggred check for trail stop
-            
-            # --- On new Candle
-            if not self.candle_queue.empty():
-                new_candle = self.candle_queue.get()
-                if new_candle['symbol'] == self.pair:
-                    self.update_df(new_candle['candle'])
-                    self.populate_indicators()
-                    self.find_last_h_l()
-                    
-                    # if no order place order
-                    # if long only place short
-                    # if short place long
-                    self.log_message(f'DF updated :\n {self.df.tail(2)}')
+
                     
         
