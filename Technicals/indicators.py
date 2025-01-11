@@ -54,6 +54,37 @@ def MACD(df: pd.DataFrame, n_slow=26, n_fast=12, n_signal=9):
     return df
 
 
+def ADX(df: pd.DataFrame, lookback: int):
+    high = df['high']
+    low = df['low']
+    close = df['close']
+
+    plus_dm = high.diff()
+    minus_dm = low.diff()
+    plus_dm[plus_dm < 0] = 0
+    minus_dm[minus_dm > 0] = 0
+
+    tr1 = high - low
+    tr2 = abs(high - close.shift(1))
+    tr3 = abs(low - close.shift(1))
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+    atr = tr.rolling(window=lookback).mean()
+
+    plus_di = 100 * (plus_dm.ewm(span=lookback, adjust=False).mean() / atr)
+    minus_di = abs(100 * (minus_dm.ewm(span=lookback, adjust=False).mean() / atr))
+    dx = (abs(plus_di - minus_di) / (plus_di + minus_di)) * 100
+    adx = dx.ewm(span=lookback, adjust=False).mean()
+
+    df['+DI'] = plus_di
+    df['-DI'] = minus_di
+    df['ADX'] = adx
+
+    return df
+
+
+
+
+
 
 
 

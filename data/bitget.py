@@ -14,8 +14,8 @@ semaphore = threading.Semaphore(request_limit)
 
 # declare timeframes
 # timeframes = ['1W', '1D', '4H', '1H', '30m', '15m', '5m', '1m' ]
-timeframes = ['15m', '5m',]
-start_datetime = '2023-01-01 00:00:00'
+timeframes = ['1H']
+start_datetime = '2020-01-01 00:00:00'
 
 # load all instruments
 # with open('constants/bitget_symbols.json', 'r') as file:
@@ -23,7 +23,7 @@ start_datetime = '2023-01-01 00:00:00'
 # instruments = data.keys()
 # print(len(instruments))
 # instruments = ['INJUSDT', 'FETUSDT', 'ARBUSDT', 'SEIUSDT']
-instruments = ['SEIUSDT', 'ARBUSDT',]
+instruments = ['BTCUSDT']
 
 # generate time intervals
 def generate_time_intervals(start_datetime, end_datetime=datetime.datetime.now().replace(second=0, microsecond=0), timeframe='1D', range=200):
@@ -85,7 +85,7 @@ def fetch_data(symbol, granularity, start_time, end_time, product='usdt-futures'
 def to_dataframe(data):
     # print(data)
     df = pd.DataFrame(data, columns=['datetime', 'open', 'high', 'low', 'close', 'volume', 'quote_volume'])
-    df['datetime'] = pd.to_datetime(df['datetime'].astype(int), unit='ms', origin='unix')
+    df['datetime'] = pd.to_datetime(df['datetime'], unit='ms', origin='unix')
     df.set_index('datetime', inplace=True)
     return df
 
