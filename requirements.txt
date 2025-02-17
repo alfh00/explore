@@ -8,6 +8,7 @@ arch==7.0.0
 astropy==6.1.2
 astropy-iers-data==0.2024.7.29.0.32.7
 asttokens==2.4.1
+async-timeout==4.0.3
 attrs==23.2.0
 backtrader==1.9.78.123
 beautifulsoup4==4.12.3
@@ -17,6 +18,8 @@ certifi==2024.7.4
 cffi==1.16.0
 charset-normalizer==3.3.2
 clarabel==0.9.0
+clr-loader==0.2.6
+colorama==0.4.6
 comm==0.2.2
 contourpy==1.2.1
 cryptography==43.0.0
@@ -26,12 +29,14 @@ debugpy==1.8.2
 decorator==5.1.1
 ecos==2.0.14
 et-xmlfile==1.1.0
+exceptiongroup==1.2.2
 executing==2.0.1
 fastjsonschema==2.20.0
 fonttools==4.53.1
 frozendict==2.4.4
 frozenlist==1.4.1
 h11==0.14.0
+hmmlearn==0.3.3
 html5lib==1.1
 httpcore==1.0.5
 httpx==0.27.0
@@ -85,8 +90,10 @@ Pygments==2.18.0
 pyparsing==3.1.2
 python-bitget==1.0.8
 python-dateutil==2.9.0.post0
+pythonnet==3.0.4
 pytz==2024.1
 pywebview==5.1
+pywin32==308
 PyYAML==6.0.1
 pyzmq==26.0.3
 qdldl==0.1.7.post4
@@ -117,6 +124,7 @@ webencodings==0.5.1
 websocket-client==1.8.0
 websockets==13.0.1
 widgetsnbextension==4.0.11
+win32_setctime==1.2.0
 XlsxWriter==3.2.0
 yarl==1.9.4
 yfinance==0.2.41

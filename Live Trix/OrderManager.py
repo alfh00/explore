@@ -2,102 +2,66 @@ from datetime import datetime as dt
 from apis.bitget_client import BitgetClient
 
 class OrderManager:
-    def __init__(self, symbol, api: BitgetClient, risk):
+    def __init__(self, symbol, api: BitgetClient):
         """
         Initialize the OrderManager with an API session.
         :param api: An API Client session object that holds market information and provides order execution.
         """
         self.api = api
         self.symbol = symbol
-        self.risk = risk
-
         self.contract = self.get_instrument_contract()
-        if self.contract is None or not self.contract:
-            raise ValueError(f"Could not retrieve contract details for {self.symbol}. Check symbol and product type.")
-        self.volume_place = int(self.contract['volumePlace'])  # Get size precision
-        self.price_place = int(self.contract['pricePlace'])    # Get price precision
-        self.min_trade_num = float(self.contract['minTradeNum']) # Minimum trade amount
-
-        
-        
 
     def oid(self):
-        # Implement your order ID generation logic here.  A UUID is a good approach.
-        import uuid
-        return str(uuid.uuid4())
-    
-    def get_account_balance(self):
-        try:
-            response = self.api.account(dict(symbol=self.symbol, productType='USDT-FUTURES', marginCoin='USDT'))
-            if response and 'data' in response:
-                print(f"Account balance: {response['data']['available']}")
-                return float(response['data']['available'])
-            
-            else:
-                print(f"Unexpected response format: {response}")
-                return None
-        except Exception as e:
-            print(f"Error getting account details: {e}")
-            return None
+        pass
 
     def get_instrument_contract(self):
-        try:
-            contract = self.api.contracts(dict(symbol=self.symbol, productType='USDT-FUTURES'))
-            if contract and 'data' in contract and contract['data']:
-                print(f"Contract detail: {contract['data'][0]}")
-                return contract['data'][0]
-            else:
-                return None  # Or raise an exception
-        except Exception as e:
-            print(f"Error getting contract: {e}")
-            return None
+        contract = self.api.contracts(dict(symbol=self.symbol, productType='USDT-FUTURES'))
+        return contract['data'][0]
 
-    def place_trigger_order(self, side, order_type, price, sl, tp):
-
-        # Get the current account balance
-        balance = self.get_account_balance()
-        if balance is None:
-            return "Failed to get account balance"
-
-        size = round(balance * self.risk, self.volume_place)  # Round size to correct precision
-        # print(f"Calculated size: {size}")
-        # if not self.is_valid_order(size):
-        #     raise ValueError(f"Order size {size} is less than the minimum {self.min_trade_num} for {self.symbol}")
-        price = round(price, self.price_place) # Round price to correct precision
-        tp = round(tp, self.price_place) # Round tp to correct precision
-        sl = round(sl, self.price_place) # Round sl to correct precision
-
-        oid = self.oid()  # Generate a unique order ID
-
+    def place_trigger_order(self, size, side, order_type, price, oid='001'):
+        
         params = {
-            "planType": "normal_plan",
+            "planType": "normal_plan",                   # 'normal_plan' | 'track_plan'
             "symbol": self.symbol,
             "productType": "USDT-FUTURES",
             "marginMode": "isolated",
             "marginCoin": "USDT",
-            "size": str(size),  # Convert size to string
-            "price": str(price), # Convert price to string
-            "triggerPrice": str(price),  # Convert price to string
-            "triggerType": "mark_price",
-            "side": side,
-            "tradeSide": "open",
-            "orderType": order_type,
+            "size": size,
+            "price": price,             
+            "triggerPrice": price,       
+            "triggerType": "mark_price",    
+            "side": side,                                # 'buy'   | 'sell'
+            "tradeSide": 'open',                         # 'open'  | 'close'
+            "orderType": order_type,                     # 'limit' | 'market'
             "clientOid": oid,
-            "stopSurplusTriggerPrice": str(tp), # Convert tp to string
-            "stopSurplusTriggerType": "mark_price",
-            "stopLossTriggerPrice": str(sl),  # Convert sl to string
-            "stopLossTriggerType": "mark_price"
         }
+        # {
+        #     "planType": "normal_plan",
+        #     "symbol": "BTCUSDT",
+        #     "productType": "USDT-FUTURES",
+        #     "marginMode": "isolated",
+        #     "marginCoin": "USDT",
+        #     "size": "0.01",
+        #     "price": "24000",
+        #     "triggerPrice": "24100",
+        #     "triggerType": "mark_price",
+        #     "side": "buy",
+        #     "tradeSide": "open",
+        #     "orderType": "limit",
+        #     "clientOid": "unique_client_id_12345",
+        #     "reduceOnly": "NO",
+        #     "stopSurplusTriggerPrice": "25000",
+        #     "stopSurplusTriggerType": "mark_price",
+        #     "stopLossTriggerPrice": "23000",
+        #     "stopLossTriggerType": "mark_price"
+        # }
 
-        # print(f"Placing order: {params}")
         try:
+            # Place the order through the session (API)
             response = self.api.placePlanOrder(params)
             return response
         except Exception as e:
-            print(f"Failed to place order: {e}")
-
-    def is_valid_order(self, amount):
-        return amount >= self.min_trade_num
+            return f"Failed to place order: {e}"
 
     def trail_stop(self, current_position, price, trailing_sl_trigger_pct, trailing_sl_pct):
         """

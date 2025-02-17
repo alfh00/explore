@@ -1,0 +1,94 @@
+from abc import ABC, abstractmethod
+import pandas as pd
+
+class Strategy(ABC):
+    """
+    Abstract base class for a trading strategy.
+    """
+    def __init__(self, data: pd.DataFrame, initial_capital: float = 1000):
+        """
+        Initialize the strategy with data and capital.
+
+        :param data: A pandas DataFrame with market data (OHLCV or custom).
+        :param initial_capital: Starting capital for the strategy.
+        """
+        self.data = data
+        self.initial_capital = initial_capital
+        self.signals = pd.DataFrame(index=data.index)  # Signal storage
+        self.positions = []  # Track open positions
+        self.performance = None  # Track strategy performance
+
+    @abstractmethod
+    def generate_signals(self):
+        """
+        Generate buy/sell signals based on strategy logic.
+        Must be implemented in the derived class.
+        """
+        pass
+
+    @abstractmethod
+    def execute_trade(self, signal: dict):
+        """
+        Execute a trade based on a signal.
+        :param signal: A dictionary containing trade details (e.g., type, size).
+        """
+        pass
+
+    @abstractmethod
+    def manage_risk(self):
+        """
+        Manage risk (e.g., set stop loss, take profit, or position sizing).
+        Must be implemented in the derived class.
+        """
+        pass
+
+    @abstractmethod
+    def evaluate_performance(self):
+        """
+        Evaluate the strategy's performance over the test period.
+        Must return a performance report (e.g., returns, drawdowns, sharpe ratio).
+        """
+        pass
+
+    def backtest(self):
+        """
+        Run a backtest by iterating through the data and applying the strategy.
+        """
+        for idx in range(len(self.data)):
+            # Slice current data
+            current_data = self.data.iloc[:idx + 1]
+            self.data_slice = current_data
+
+            # Generate signals
+            self.generate_signals()
+
+            # Fetch the most recent signal (if available)
+            latest_signal = self.signals.iloc[idx].to_dict() if not self.signals.empty else None
+
+            # Execute trade if a signal exists
+            if latest_signal:
+                self.execute_trade(latest_signal)
+
+            # Manage risk for any open positions
+            self.manage_risk()
+
+        # Evaluate performance after the backtest
+        self.performance = self.evaluate_performance()
+
+    def report(self):
+        """
+        Display the results of the backtest.
+        """
+        print("Performance Report:")
+        print(self.performance)
+
+
+
+# Usage
+# data = pd.DataFrame({
+#     "close": [100, 102, 101, 103, 105, 102, 104, 106],
+#     "open": [99, 101, 100, 102, 104, 101, 103, 105]
+# })
+# strategy = MovingAverageStrategy(data, short_window=2, long_window=3)
+# strategy.backtest()
+# strategy.report()

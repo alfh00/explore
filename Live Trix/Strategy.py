@@ -18,7 +18,7 @@ class Strategy(ThreadBase):
         self.candle_queue= candle_queue
         self.price_queue= price_queue
         self.position_queue= position_queue
-        self.order_manager: OrderManager = order_manager(self.pair, self.api, settings.risk)
+        self.order_manager: OrderManager = order_manager(self.pair, self.api)
         self.long_position = None
         self.short_position = None
 
@@ -144,7 +144,8 @@ class Strategy(ThreadBase):
             long_order_price = hh - (hh * self.settings.dist)
             sl = long_order_price - (long_order_price * self.settings.sl_pct)
             tp = long_order_price + (long_order_price * self.settings.tp_pct)
-            print(self.order_manager.place_trigger_order('buy', 'limit', long_order_price, sl, tp))
+            print(f'long order price: {long_order_price}, sl: {sl}, tp: {tp}')
+            # self.order_manager.place_trigger_order()
 
         if self.short_position is None:
             ll = self.df['ll'].iloc[-1]
@@ -152,7 +153,8 @@ class Strategy(ThreadBase):
             short_order_price = ll + (ll * self.settings.dist)
             sl = short_order_price + (short_order_price * self.settings.sl_pct)
             tp = short_order_price - (short_order_price * self.settings.tp_pct)
-            print(self.order_manager.place_trigger_order('sell', 'limit', short_order_price, sl, tp))
+            print(f'short order price: {short_order_price}, sl: {sl}, tp: {tp}')
+            # self.order_manager.place_trigger_order()
 
     def pick_upcoming_price(self):
         if not self.price_queue.empty():
@@ -163,9 +165,9 @@ class Strategy(ThreadBase):
     def pick_upcoming_position(self):
         if not self.position_queue.empty():
             position = self.position_queue.get()
-            print('UPCOMING POSITION', position)
+            print(position)
             # check opening closing position 
-            # return self.check_position(position)
+            return self.check_position(position)
     
     def pick_upcoming_candle(self):
         if not self.candle_queue.empty():

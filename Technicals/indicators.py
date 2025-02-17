@@ -81,7 +81,23 @@ def ADX(df: pd.DataFrame, lookback: int):
 
     return df
 
+def TRIX(df: pd.DataFrame, n=15):
+    """
+    Calculate the TRIX (Triple Exponential Average) indicator.
+    :param df: DataFrame containing the price data.
+    :param n: Period for calculating the TRIX.
+    :return: DataFrame with TRIX and TRIX signal added.
+    """
+    ema1 = df.close.ewm(span=n, min_periods=n).mean()
+    ema2 = ema1.ewm(span=n, min_periods=n).mean()
+    ema3 = ema2.ewm(span=n, min_periods=n).mean()
 
+    df['TRIX'] = 100 * ema3.pct_change()
+
+    # Adding a signal line for TRIX
+    df['TRIX_SIGNAL'] = df['TRIX'].ewm(span=n, min_periods=n).mean()
+
+    return df
 
 
 

@@ -24,7 +24,7 @@ class PriceStreamer(threading.Thread):
         # Subscribe to market channels
         self.symbols = shared_prices.keys()
         # print(self.symbols)
-        channels = [SubscribeReq("mc", "ticker", symbol) for symbol in self.symbols] + [SubscribeReq("umcbl", "ordersAlgo", "default") ]
+        channels = [SubscribeReq("mc", "ticker", symbol) for symbol in self.symbols] + [SubscribeReq("umcbl", "positions", "default") ]
         self.ws_client.subscribe(channels, self.on_message)
     
     def on_message(self, message):

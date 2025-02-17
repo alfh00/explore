@@ -14,14 +14,14 @@ semaphore = threading.Semaphore(request_limit)
 
 # declare timeframes
 # timeframes = ['1W', '1D', '4H', '1H', '30m', '15m', '5m', '1m' ]
-timeframes = ['1H']
-start_datetime = '2020-01-01 00:00:00'
+timeframes = ['1D']
+start_datetime = '2011-01-01 00:00:00'
 
 # load all instruments
-# with open('constants/bitget_symbols.json', 'r') as file:
-#     data = json.load(file)
-# instruments = data.keys()
-# print(len(instruments))
+with open('constants/bitget_symbols.json', 'r') as file:
+    data = json.load(file)
+instruments = data.keys()
+print(len(instruments))
 # instruments = ['INJUSDT', 'FETUSDT', 'ARBUSDT', 'SEIUSDT']
 instruments = ['BTCUSDT']
 
@@ -83,10 +83,36 @@ def fetch_data(symbol, granularity, start_time, end_time, product='usdt-futures'
         return data
 
 def to_dataframe(data):
-    # print(data)
-    df = pd.DataFrame(data, columns=['datetime', 'open', 'high', 'low', 'close', 'volume', 'quote_volume'])
-    df['datetime'] = pd.to_datetime(df['datetime'], unit='ms', origin='unix')
-    df.set_index('datetime', inplace=True)
+    # Define the column names
+    columns = ['datetime', 'open', 'high', 'low', 'close', 'volume', 'other']
+
+    # Convert the list of lists to a list of dictionaries
+    data_dicts = [dict(zip(columns, row)) for row in data]
+
+    # Create the DataFrame
+    df = pd.DataFrame(data_dicts)
+
+    # Print the column names to diagnose the issue
+    print("Column names:", df.columns)
+
+    # Check if the 'datetime' column exists
+    if 'datetime' not in df.columns:
+        raise KeyError("The 'datetime' column is missing from the data.")
+
+    # Print the first few rows of the datetime column to diagnose the issue
+    print(df['datetime'].head())
+
+    # Convert the datetime column to integers safely
+    try:
+        df['datetime'] = pd.to_numeric(df['datetime'], errors='coerce').astype('Int64')
+    except OverflowError as e:
+        print(f"OverflowError: {e}")
+        # Handle the error, e.g., by filtering out problematic rows
+        df = df[df['datetime'] < 2**63]  # Filter out values that are too large
+
+    # Convert to datetime
+    df['datetime'] = pd.to_datetime(df['datetime'], unit='ms', origin='unix', errors='coerce')
+
     return df
 
 

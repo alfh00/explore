@@ -3,7 +3,6 @@
 class TradeSettings:
     def __init__(self, ob):
         self.granularity= str(ob['granularity'])
-        self.risk= float(ob['risk'])
         self.dist = float(ob['dist'])
         self.sl_pct= float(ob['sl_pct'])
         self.tp_pct= float(ob['tp_pct'])

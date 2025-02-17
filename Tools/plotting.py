@@ -11,20 +11,30 @@ class CandlePlot:
         self.create_candle_fig()
 
     def create_candle_fig(self):
-        self.fig = go.Figure()
-        self.fig.add_traces(go.Candlestick(
-            x=self.df_plot.index,
-            open=self.df_plot.open,
-            high=self.df_plot.high,
-            low=self.df_plot.low,
-            close=self.df_plot.close,
-            line=dict(width=1), opacity=1,
-            increasing_fillcolor='#24A06B',
-            decreasing_fillcolor='#CC2E3C',
-            increasing_line_color='#2EC886',
-            decreasing_line_color='#FF3A4C',
-            name='candles'
-        ))
+        # Create subplots: 1 row for candles, 1 row for TRIX
+        self.fig = make_subplots(
+            rows=2, cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.1,  # Adjust spacing between subplots
+            row_heights=[1.2, 0.3]  # Adjust subplot heights
+        )
+        # Add candlestick trace to the first row
+        self.fig.add_trace(
+            go.Candlestick(
+                x=self.df_plot.index,
+                open=self.df_plot.open,
+                high=self.df_plot.high,
+                low=self.df_plot.low,
+                close=self.df_plot.close,
+                line=dict(width=1), opacity=1,
+                increasing_fillcolor='#24A06B',
+                decreasing_fillcolor='#CC2E3C',
+                increasing_line_color='#2EC886',
+                decreasing_line_color='#FF3A4C',
+                name='Candles'
+            ),
+            row=1, col=1
+        )
 
     def update_layout(self, width, height, nticks):
         self.fig.update_yaxes(
@@ -45,7 +55,7 @@ class CandlePlot:
         self.fig.update_layout(
             xaxis=dict(
             rangeslider=dict(
-            visible=True
+            visible=False
             ),
             type="date"
             )
@@ -53,13 +63,29 @@ class CandlePlot:
 
     def add_traces(self, line_traces):
         for t in line_traces:
-            self.fig.add_trace(go.Scatter(
-                x=self.df_plot.index,
-                y=self.df_plot[t],
-                line=dict(width=2),
-                line_shape='spline',
-                name=t
-            ))
+            if t.startswith('TRIX'):
+                # Add TRIX trace to the second row
+                self.fig.add_trace(
+                    go.Scatter(
+                        x=self.df_plot.index,
+                        y=self.df_plot[t],
+                        line=dict(width=2),
+                        name=t
+                    ),
+                    row=2, col=1
+                )
+            else:
+                # Add other traces to the first row
+                self.fig.add_trace(
+                    go.Scatter(
+                        x=self.df_plot.index,
+                        y=self.df_plot[t],
+                        line=dict(width=2),
+                        line_shape='spline',
+                        name=t
+                    ),
+                    row=1, col=1
+                )
 
     def add_entries(self, trades):
         df = trades.copy()
